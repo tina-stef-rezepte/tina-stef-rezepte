@@ -100,6 +100,17 @@
       object-fit: cover;
     }
 
+    .greeting {
+      margin: 0 0 10px;
+      color: var(--taupe);
+      font-size: 15px;
+      font-weight: 600;
+      letter-spacing: .25px;
+      opacity: 0;
+      transform: translateY(7px);
+      animation: textReveal .5s ease .22s forwards;
+    }
+
     h1 {
       margin: 0;
       font-size: clamp(25px, 7vw, 32px);
@@ -108,7 +119,7 @@
       letter-spacing: -.4px;
       opacity: 0;
       transform: translateY(7px);
-      animation: textReveal .55s ease .28s forwards;
+      animation: textReveal .55s ease .38s forwards;
     }
 
     .subtitle {
@@ -118,7 +129,7 @@
       letter-spacing: .2px;
       opacity: 0;
       transform: translateY(7px);
-      animation: textReveal .55s ease .48s forwards;
+      animation: textReveal .55s ease .56s forwards;
     }
 
     .loader {
@@ -126,7 +137,7 @@
       margin: 34px auto 0;
       opacity: 0;
       transform: translateY(6px);
-      animation: textReveal .5s ease .68s forwards;
+      animation: textReveal .5s ease .74s forwards;
     }
 
     .progress-track {
@@ -288,6 +299,13 @@
         >
       </div>
 
+      <p
+        id="greeting"
+        class="greeting"
+      >
+        Guete Tag
+      </p>
+
       <h1>Tina und Stef's Rezepte</h1>
 
       <p class="subtitle">
@@ -300,7 +318,7 @@
         </div>
 
         <div class="loading-row">
-          <span>Rezepte werden geladen</span>
+          <span id="loadingText">Chuchi wird vorbereitet</span>
 
           <span class="dots" aria-hidden="true">
             <span></span>
@@ -347,12 +365,72 @@
     const fallback =
       document.getElementById('fallback');
 
+    const greeting =
+      document.getElementById('greeting');
+
+    const loadingText =
+      document.getElementById('loadingText');
+
     let appLoaded = false;
+
+
+    // Begrüssung passend zur lokalen Uhrzeit des Geräts.
+    const currentHour =
+      new Date().getHours();
+
+    if (currentHour < 11) {
+      greeting.textContent = 'Guete Morge';
+    } else if (currentHour < 17) {
+      greeting.textContent = 'Guete Tag';
+    } else {
+      greeting.textContent = 'Guete Abig';
+    }
+
+
+    // Kleine wechselnde Texte während des Ladens.
+    const loadingMessages = [
+      'Chuchi wird vorbereitet',
+      'Rezepte werden geladen',
+      'En Guete!'
+    ];
+
+    let loadingMessageIndex = 0;
+
+    const loadingMessageTimer =
+      setInterval(
+        () => {
+          if (appLoaded) {
+            clearInterval(loadingMessageTimer);
+            return;
+          }
+
+          loadingMessageIndex =
+            (loadingMessageIndex + 1) %
+            loadingMessages.length;
+
+          loadingText.style.opacity = '0';
+
+          setTimeout(
+            () => {
+              loadingText.textContent =
+                loadingMessages[loadingMessageIndex];
+
+              loadingText.style.opacity = '1';
+            },
+            180
+          );
+        },
+        1150
+      );
+
+    loadingText.style.transition =
+      'opacity .18s ease';
 
     frame.addEventListener(
       'load',
       () => {
         appLoaded = true;
+        clearInterval(loadingMessageTimer);
 
         setTimeout(
           () => {
@@ -387,7 +465,7 @@
         () => {
           navigator
             .serviceWorker
-            .register('./service-worker.js?v=2')
+            .register('./service-worker.js?v=3')
             .catch(() => {
               // Die App funktioniert auch ohne Service Worker.
             });
