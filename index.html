@@ -76,12 +76,11 @@
       width: min(92vw, 390px);
       text-align: center;
       transform: translateY(-2vh);
-      animation: riseIn .95s ease both;
     }
 
     .logo-wrap {
-      width: 196px;
-      height: 196px;
+      width: 220px;
+      height: 220px;
       margin: 0 auto 28px;
       padding: 7px;
       border-radius: 42px;
@@ -108,7 +107,7 @@
       letter-spacing: .25px;
       opacity: 0;
       transform: translateY(7px);
-      animation: textReveal .5s ease 1.85s forwards;
+      animation: textReveal .5s ease 3.20s forwards;
     }
 
     h1 {
@@ -119,7 +118,7 @@
       letter-spacing: -.4px;
       opacity: 0;
       transform: translateY(7px);
-      animation: textReveal .55s ease 2.05s forwards;
+      animation: textReveal .55s ease 3.45s forwards;
     }
 
     .subtitle {
@@ -129,7 +128,7 @@
       letter-spacing: .2px;
       opacity: 0;
       transform: translateY(7px);
-      animation: textReveal .55s ease 2.25s forwards;
+      animation: textReveal .55s ease 3.70s forwards;
     }
 
     .loader {
@@ -137,7 +136,7 @@
       margin: 34px auto 0;
       opacity: 0;
       transform: translateY(6px);
-      animation: textReveal .5s ease 2.50s forwards;
+      animation: textReveal .5s ease 4.00s forwards;
     }
 
     .progress-track {
@@ -376,7 +375,7 @@
     // Der Startbildschirm bleibt mindestens so lange sichtbar,
     // damit Begrüssung und Ladehinweise wahrgenommen werden können.
     const splashStartedAt = Date.now();
-    const MIN_SPLASH_TIME = 5200;
+    const MIN_SPLASH_TIME = 7200;
 
 
     // Begrüssung passend zur lokalen Uhrzeit des Geräts.
@@ -491,7 +490,7 @@
         () => {
           navigator
             .serviceWorker
-            .register('./service-worker.js?v=5')
+            .register('./service-worker.js?v=6')
             .catch(() => {
               // Die App funktioniert auch ohne Service Worker.
             });
