@@ -373,13 +373,18 @@
 
     let appLoaded = false;
 
+    // Der Startbildschirm bleibt mindestens so lange sichtbar,
+    // damit Begrüssung und Ladehinweise wahrgenommen werden können.
+    const splashStartedAt = Date.now();
+    const MIN_SPLASH_TIME = 3400;
+
 
     // Begrüssung passend zur lokalen Uhrzeit des Geräts.
     const currentHour =
       new Date().getHours();
 
     if (currentHour < 11) {
-      greeting.textContent = 'Guete Morge';
+      greeting.textContent = 'Guete Morgä';
     } else if (currentHour < 17) {
       greeting.textContent = 'Guete Tag';
     } else {
@@ -399,11 +404,6 @@
     const loadingMessageTimer =
       setInterval(
         () => {
-          if (appLoaded) {
-            clearInterval(loadingMessageTimer);
-            return;
-          }
-
           loadingMessageIndex =
             (loadingMessageIndex + 1) %
             loadingMessages.length;
@@ -430,13 +430,39 @@
       'load',
       () => {
         appLoaded = true;
-        clearInterval(loadingMessageTimer);
+
+        const elapsed =
+          Date.now() - splashStartedAt;
+
+        const remaining =
+          Math.max(
+            MIN_SPLASH_TIME - elapsed,
+            0
+          );
+
+        // Die Meldungen dürfen während der Mindestanzeige weiterlaufen.
+        // Kurz vor dem Wechsel erscheint nochmals „En Guete!“.
+        setTimeout(
+          () => {
+            loadingText.style.opacity = '0';
+
+            setTimeout(
+              () => {
+                loadingText.textContent = 'En Guete!';
+                loadingText.style.opacity = '1';
+              },
+              180
+            );
+          },
+          Math.max(remaining - 650, 0)
+        );
 
         setTimeout(
           () => {
+            clearInterval(loadingMessageTimer);
             splash.classList.add('hide');
           },
-          520
+          remaining + 320
         );
       }
     );
@@ -465,7 +491,7 @@
         () => {
           navigator
             .serviceWorker
-            .register('./service-worker.js?v=3')
+            .register('./service-worker.js?v=4')
             .catch(() => {
               // Die App funktioniert auch ohne Service Worker.
             });
