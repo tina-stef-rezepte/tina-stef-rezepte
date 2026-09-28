@@ -412,24 +412,39 @@
 
 
     // ======================================================
-    // ANDROID-ZURÜCKSCHUTZ
+    // ANDROID-ZURÜCKSCHUTZ – VERSION 2
     // ======================================================
     //
-    // Die installierte PWA hat auf der Startansicht normalerweise
-    // keinen weiteren Verlauf. Ohne Schutz beendet Android die App
-    // deshalb beim ersten Druck auf die System-Zurück-Taste.
+    // Ziel:
+    // 1. Erster Druck auf Android-Zurück: App bleibt offen + Hinweis.
+    // 2. Zweiter Druck INNERHALB von 2,5 Sekunden: App darf schliessen.
+    // 3. Verstreichen die 2,5 Sekunden, wird der Schutz wieder vollständig
+    //    aktiviert. Ein späterer Druck ist dann wieder ein "erster" Druck.
     //
-    // Wir legen einen unsichtbaren Verlaufseintrag an. Beim ersten
-    // Zurück wird dieser abgefangen und ein kurzer Hinweis angezeigt.
-    // Ein zweiter Druck innerhalb von 2,5 Sekunden darf die App verlassen.
+    // Wichtig: Statt nach jedem ersten Druck einen neuen Verlaufseintrag
+    // zu erzeugen, springen wir zuverlässig wieder auf den vorhandenen
+    // Schutz-Eintrag vor. Das verhindert, dass Android die App bei einem
+    // späteren zweiten Druck (z. B. nach 10 Sekunden) trotzdem beendet.
 
     const backExitToast =
       document.getElementById('backExitToast');
 
     const BACK_EXIT_WINDOW = 2500;
 
-    let lastBackPress = 0;
+    let exitArmedUntil = 0;
     let backExitToastTimer = null;
+    let guardWirdWiederhergestellt = false;
+
+    function versteckeBackExitHinweis() {
+      if (backExitToastTimer) {
+        clearTimeout(backExitToastTimer);
+        backExitToastTimer = null;
+      }
+
+      if (backExitToast) {
+        backExitToast.classList.remove('show');
+      }
+    }
 
     function zeigeBackExitHinweis() {
       if (!backExitToast) {
@@ -444,14 +459,18 @@
 
       backExitToastTimer = setTimeout(
         () => {
+          // Nach Ablauf des Fensters ist ein späterer Zurück-Druck
+          // wieder ein erster Druck und darf die App nicht schliessen.
+          exitArmedUntil = 0;
           backExitToast.classList.remove('show');
+          backExitToastTimer = null;
         },
         BACK_EXIT_WINDOW
       );
     }
 
-    // Bestehenden Eintrag als App-Start markieren und direkt danach
-    // einen Schutz-Eintrag anlegen. Die URL bleibt dabei unverändert.
+    // Der aktuelle Eintrag ist die App-Basis. Direkt davor/danach legen
+    // wir einen zusätzlichen Schutz-Eintrag mit identischer URL an.
     history.replaceState(
       { tinaStefAppRoot: true },
       '',
@@ -466,26 +485,30 @@
 
     window.addEventListener(
       'popstate',
-      () => {
+      (event) => {
+        // history.forward() löst selbst wieder ein popstate aus.
+        // Dieses Ereignis gehört nur zum Wiederherstellen des Schutzes
+        // und darf nicht als neuer Druck auf Zurück behandelt werden.
+        if (
+          guardWirdWiederhergestellt &&
+          event.state &&
+          event.state.tinaStefBackGuard
+        ) {
+          guardWirdWiederhergestellt = false;
+          return;
+        }
+
         const now = Date.now();
 
+        // Zweiter Druck innerhalb des erlaubten Zeitfensters:
+        // Hinweis ausblenden und die PWA verlassen.
         if (
-          lastBackPress &&
-          now - lastBackPress <= BACK_EXIT_WINDOW
+          exitArmedUntil &&
+          now <= exitArmedUntil
         ) {
-          lastBackPress = 0;
+          exitArmedUntil = 0;
+          versteckeBackExitHinweis();
 
-          if (backExitToastTimer) {
-            clearTimeout(backExitToastTimer);
-          }
-
-          if (backExitToast) {
-            backExitToast.classList.remove('show');
-          }
-
-          // Wir befinden uns nach dem zweiten Zurück wieder am
-          // App-Start. Ein weiterer History-Schritt verlässt die PWA,
-          // sofern Android/Chrome dafür einen vorherigen Eintrag führt.
           setTimeout(
             () => {
               history.back();
@@ -496,17 +519,21 @@
           return;
         }
 
-        lastBackPress = now;
-
-        // Schutz sofort wieder einsetzen, damit der nächste Druck
-        // innerhalb des Zeitfensters als zweiter Druck erkannt wird.
-        history.pushState(
-          { tinaStefBackGuard: true },
-          '',
-          location.href
-        );
+        // Erster Druck – oder ein Druck nach Ablauf des Zeitfensters.
+        // App offen halten und Schutz wieder einsetzen.
+        exitArmedUntil =
+          now + BACK_EXIT_WINDOW;
 
         zeigeBackExitHinweis();
+
+        guardWirdWiederhergestellt = true;
+
+        setTimeout(
+          () => {
+            history.forward();
+          },
+          0
+        );
       }
     );
 
