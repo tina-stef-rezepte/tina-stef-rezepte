@@ -283,6 +283,34 @@
         transition-duration: .01ms !important;
       }
     }
+
+
+    /* Android-Zurückschutz: kurzer Hinweis statt sofortigem Schliessen */
+    #backExitToast {
+      position: fixed;
+      left: 50%;
+      bottom: calc(22px + env(safe-area-inset-bottom));
+      z-index: 60;
+      max-width: calc(100vw - 32px);
+      padding: 12px 16px;
+      border-radius: 999px;
+      background: rgba(11, 59, 50, .94);
+      color: #fff;
+      font-size: 14px;
+      line-height: 1.25;
+      text-align: center;
+      box-shadow: 0 8px 24px rgba(0, 0, 0, .18);
+      opacity: 0;
+      transform: translate(-50%, 12px);
+      pointer-events: none;
+      transition: opacity .18s ease, transform .18s ease;
+    }
+
+    #backExitToast.show {
+      opacity: 1;
+      transform: translate(-50%, 0);
+    }
+
   </style>
 </head>
 
@@ -351,6 +379,16 @@
     </a>
   </div>
 
+
+
+  <div
+    id="backExitToast"
+    role="status"
+    aria-live="polite"
+  >
+    Nochmals Zurück drücken, um die App zu schliessen
+  </div>
+
   <script>
     const frame =
       document.getElementById('appFrame');
@@ -371,6 +409,107 @@
       document.getElementById('loadingText');
 
     let appLoaded = false;
+
+
+    // ======================================================
+    // ANDROID-ZURÜCKSCHUTZ
+    // ======================================================
+    //
+    // Die installierte PWA hat auf der Startansicht normalerweise
+    // keinen weiteren Verlauf. Ohne Schutz beendet Android die App
+    // deshalb beim ersten Druck auf die System-Zurück-Taste.
+    //
+    // Wir legen einen unsichtbaren Verlaufseintrag an. Beim ersten
+    // Zurück wird dieser abgefangen und ein kurzer Hinweis angezeigt.
+    // Ein zweiter Druck innerhalb von 2,5 Sekunden darf die App verlassen.
+
+    const backExitToast =
+      document.getElementById('backExitToast');
+
+    const BACK_EXIT_WINDOW = 2500;
+
+    let lastBackPress = 0;
+    let backExitToastTimer = null;
+
+    function zeigeBackExitHinweis() {
+      if (!backExitToast) {
+        return;
+      }
+
+      backExitToast.classList.add('show');
+
+      if (backExitToastTimer) {
+        clearTimeout(backExitToastTimer);
+      }
+
+      backExitToastTimer = setTimeout(
+        () => {
+          backExitToast.classList.remove('show');
+        },
+        BACK_EXIT_WINDOW
+      );
+    }
+
+    // Bestehenden Eintrag als App-Start markieren und direkt danach
+    // einen Schutz-Eintrag anlegen. Die URL bleibt dabei unverändert.
+    history.replaceState(
+      { tinaStefAppRoot: true },
+      '',
+      location.href
+    );
+
+    history.pushState(
+      { tinaStefBackGuard: true },
+      '',
+      location.href
+    );
+
+    window.addEventListener(
+      'popstate',
+      () => {
+        const now = Date.now();
+
+        if (
+          lastBackPress &&
+          now - lastBackPress <= BACK_EXIT_WINDOW
+        ) {
+          lastBackPress = 0;
+
+          if (backExitToastTimer) {
+            clearTimeout(backExitToastTimer);
+          }
+
+          if (backExitToast) {
+            backExitToast.classList.remove('show');
+          }
+
+          // Wir befinden uns nach dem zweiten Zurück wieder am
+          // App-Start. Ein weiterer History-Schritt verlässt die PWA,
+          // sofern Android/Chrome dafür einen vorherigen Eintrag führt.
+          setTimeout(
+            () => {
+              history.back();
+            },
+            0
+          );
+
+          return;
+        }
+
+        lastBackPress = now;
+
+        // Schutz sofort wieder einsetzen, damit der nächste Druck
+        // innerhalb des Zeitfensters als zweiter Druck erkannt wird.
+        history.pushState(
+          { tinaStefBackGuard: true },
+          '',
+          location.href
+        );
+
+        zeigeBackExitHinweis();
+      }
+    );
+
 
     // Der Startbildschirm bleibt mindestens so lange sichtbar,
     // damit Begrüssung und Ladehinweise wahrgenommen werden können.
@@ -490,7 +629,7 @@
         () => {
           navigator
             .serviceWorker
-            .register('./service-worker.js?v=6')
+            .register('./service-worker.js?v=7')
             .catch(() => {
               // Die App funktioniert auch ohne Service Worker.
             });
